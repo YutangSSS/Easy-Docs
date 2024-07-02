@@ -48,7 +48,129 @@ const allowedEndpoints = [
   { method: "GET", path: "/v1/admin/bots/{id}/issues" },
   { method: "DELETE", path: "/v1/admin/bots/{id}/issues/{issueId}" },
   { method: "GET", path: "/v1/admin/bots/{id}/issues/{issueId}/events" },
-];
+  {
+    method: "GET",
+    path: "/v1/tables"
+  },
+  {
+    method: "GET",
+    path: "/v1/tables/{table}"
+  },
+  {
+    method: "POST",
+    path: "/v1/tables/{table}"
+  },
+  {
+    method: "POST",
+    path: "/v1/tables"
+  },
+  {
+    method: "POST",
+    path: "/v1/tables/{sourceTableId}/duplicate"
+  },
+  {
+    method: "PUT",
+    path: "/v1/tables/{table}"
+  },
+  {
+    method: "PUT",
+    path: "/v1/tables/{table}/column"
+  },
+  {
+    method: "DELETE",
+    path: "/v1/tables/{table}"
+  },
+  {
+    method: "GET",
+    path: "/v1/tables/{table}/row"
+  },
+  {
+    method: "POST",
+    path: "/v1/tables/{table}/rows/find"
+  },
+  {
+    method: "POST",
+    path: "/v1/tables/{table}/rows"
+  },
+  {
+    method: "POST",
+    path: "/v1/tables/{table}/rows/delete"
+  },
+  {
+    method: "PUT",
+    path: "/v1/tables/{table}/rows"
+  },
+  {
+    method: "POST",
+    path: "/v1/tables/{table}/rows/upsert"
+  },
+  {
+    method: "PUT",
+    path: "/v1/files"
+  },
+  {
+    method: "DELETE",
+    path: "/v1/files/{id}"
+  },
+  {
+    method: "GET",
+    path: "/v1/files"
+  },
+  {
+    method: "GET",
+    path: "/v1/files/{id}"
+  },
+  {
+    method: "PUT",
+    path: "/v1/files/{id}"
+  },
+  {
+    method: "GET",
+    path: "/v1/files/search"
+  }
+]
+
+const pathIncludesCategories = {
+  '/chat/users': 'conversations',
+  '/chat/conversations': 'conversations',
+  '/chat/messages': 'conversations',
+  '/chat/events': 'events',
+  '/chat/states': 'states',
+  '/chat/actions': 'actions',
+  '/admin/bots': 'bots',
+  '/files': 'files',
+  '/tables': 'tables',
+}
+const headerIncludesCategories = {
+  '/chat/': ["x-integration-id", "x-bot-id"],
+  '/bots': ["x-workspace-id"],
+  '/files': ["x-bot-id", "x-workspace-id"],
+  '/tables': ["x-bot-id", "x-workspace-id"],
+}
+
+const getCategoryFromPath = (path) => { // for step 3
+
+  for (const keyPath in pathIncludesCategories) {
+    if (path.includes(keyPath)) {
+      return pathIncludesCategories[keyPath]
+    }
+  }
+
+  return "unclassified" //example   
+}
+
+
+
+const getHeadersFromPath = (path) => {
+  for (const keyPath in headerIncludesCategories) {
+    if (path.includes(keyPath)) {
+      return headerIncludesCategories[keyPath]
+    }
+  }
+  return []
+}
+
+
 
 fs.readFile(inputFilePath, "utf8", (err, data) => {
   if (err) {
@@ -97,9 +219,33 @@ fs.readFile(inputFilePath, "utf8", (err, data) => {
     },
   ];
 
-  // todo 2 : add correct headers to each request
 
-  // todo 3: classify each endpoint using "tags" so they are organized
+
+  for (const path in openApiJson.paths) {
+    for (const method in openApiJson.paths[path]) {
+      // todo 2 : add correct headers to each request
+      if (!openApiJson.paths[path][method].parameters) {
+        openApiJson.paths[path][method].parameters = []
+
+      }
+
+      const requiredHeaders = getHeadersFromPath(path)
+
+      openApiJson.paths[path][method].parameters.push(...requiredHeaders.map(headerName => ({
+        "name": headerName,
+        "in": "header",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Workspace ID"
+      })))
+
+      // todo 3: classify each endpoint using "tags" so they are organized
+      openApiJson.paths[path][method].tags = [getCategoryFromPath(path)]
+
+    }
+  }
 
   // Convert the updated JSON object back to string
   const updatedJson = JSON.stringify(openApiJson, null, 4);
